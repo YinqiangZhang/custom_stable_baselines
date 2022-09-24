@@ -940,10 +940,22 @@ class GNNActorCriticPolicy(ActorCriticPolicy):
         )
     
     def obs_to_tensor(self, observation: gym.spaces.GraphInstance):
-        vectorized_env = False
-        x = th.tensor(observation.nodes).float()
-        edge_index = th.tensor(observation.edge_links, dtype=th.long).t().contiguous().view(2, -1)
-        torch_obs = thg.data.Data(x=x, edge_index=edge_index)
+        if isinstance(observation, list):
+            vectorized_env = True
+        else:
+            vectorized_env = False
+        if vectorized_env:
+            torch_obs = list()
+            for obs in observation:
+                x = th.tensor(obs.nodes).float()
+                edge_index = th.tensor(obs.edge_links, dtype=th.long).t().contiguous().view(2, -1)
+                torch_obs.append(thg.data.Data(x=x, edge_index=edge_index))
+            if len(torch_obs) == 1:
+                torch_obs = torch_obs[0]
+        else:
+            x = th.tensor(observation.nodes).float()
+            edge_index = th.tensor(observation.edge_links, dtype=th.long).t().contiguous().view(2, -1)
+            torch_obs = thg.data.Data(x=x, edge_index=edge_index)
         return torch_obs, vectorized_env
     
     def forward(self, obs: thg.data.Data, 
@@ -960,6 +972,7 @@ class GNNActorCriticPolicy(ActorCriticPolicy):
 
     def _predict(self, observation: thg.data.Data, 
                  deterministic: bool = False) -> th.Tensor:
+        observation.to("cuda")
         return self.get_distribution(observation).get_actions(deterministic=deterministic)
     
     def evaluate_actions(self, obs: thg.data.Data, 

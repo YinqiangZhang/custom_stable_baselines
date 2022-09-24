@@ -5,7 +5,8 @@ import gym
 import torch as th
 from torch import nn
 import torch_geometric as thg
-from torch_geometric.nn import GCNConv, global_max_pool
+from torch_geometric.nn import GCNConv, SAGEConv, GATConv, global_max_pool
+from torch_geometric_temporal.nn.recurrent.gconv_gru import GConvGRU
 
 from stable_baselines3.common.preprocessing import get_flattened_obs_dim, is_image_space
 from stable_baselines3.common.type_aliases import TensorDict
@@ -288,12 +289,19 @@ class GraphFeaturesExtractor(BaseFeaturesExtractor):
     """
     
     def __init__(self, observation_space: gym.spaces.Graph,
-                 gnn_output_dim: int = 64):
+                 gnn_output_dim: int = 64, model='GCN'):
         super().__init__(observation_space, features_dim=gnn_output_dim)
         self._features_dim = gnn_output_dim
         node_feature_num = observation_space.node_space.shape[0]
         
-        self.conv_layer = GCNConv(node_feature_num, 2*gnn_output_dim)
+        if model == 'GCN':
+            self.conv_layer = GCNConv(node_feature_num, 2*gnn_output_dim)
+        elif model == 'SAGE':
+            self.conv_layer = SAGEConv(node_feature_num, 2*gnn_output_dim)
+        elif model == 'GAT':
+            self.conv_layer = GATConv(node_feature_num, 2*gnn_output_dim)
+        
+        # self.conv_layer = GConvGRU(in_channels=node_feature_num, out_channels=2*gnn_output_dim, K=7)
         self.linear_layer = nn.Linear(2*gnn_output_dim, gnn_output_dim)
     
     def forward(self, observations: thg.data.Data):
