@@ -308,7 +308,7 @@ class GraphFeaturesExtractor(BaseFeaturesExtractor):
         x, edge_index, batch = observations.x, observations.edge_index, observations.batch
         h = self.conv_layer(x, edge_index).relu()
         h = global_max_pool(h, batch)
-        h = self.linear_layer(h)
+        h = self.linear_layer(h).relu()
         return h
 
 def get_actor_critic_arch(net_arch: Union[List[int], Dict[str, List[int]]]) -> Tuple[List[int], List[int]]:
