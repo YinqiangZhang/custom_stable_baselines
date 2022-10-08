@@ -5,7 +5,8 @@ import gym
 import torch as th
 from torch import nn
 import torch_geometric as thg
-from torch_geometric.nn import GCNConv, SAGEConv, GATConv, global_max_pool
+from torch_geometric.nn import GCNConv, SAGEConv, GATConv, global_max_pool, BatchNorm
+import torch.nn.functional as F
 from torch_geometric_temporal.nn.recurrent.gconv_gru import GConvGRU
 
 from stable_baselines3.common.preprocessing import get_flattened_obs_dim, is_image_space
@@ -301,12 +302,15 @@ class GraphFeaturesExtractor(BaseFeaturesExtractor):
         elif model == 'GAT':
             self.conv_layer = GATConv(node_feature_num, 2*gnn_output_dim)
         
-        # self.conv_layer = GConvGRU(in_channels=node_feature_num, out_channels=2*gnn_output_dim, K=7)
+        self.conv_layer2 = GCNConv(2*gnn_output_dim, 2*gnn_output_dim) # new layer 
         self.linear_layer = nn.Linear(2*gnn_output_dim, gnn_output_dim)
     
     def forward(self, observations: thg.data.Data):
         x, edge_index, batch = observations.x, observations.edge_index, observations.batch
         h = self.conv_layer(x, edge_index).relu()
+        h = F.dropout(h, p=0.2, training=self.training)
+        h = self.conv_layer2(h, edge_index).relu()
+        h = F.dropout(h, p=0.2, training=self.training)
         h = global_max_pool(h, batch)
         h = self.linear_layer(h).relu()
         return h
